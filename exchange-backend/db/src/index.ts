@@ -13,7 +13,6 @@ const pgClient = new Client({
     password:process.env.DATABASE_PASSWORD,
     port:5432
 });
-
 pgClient.connect();
 
 async function main() {

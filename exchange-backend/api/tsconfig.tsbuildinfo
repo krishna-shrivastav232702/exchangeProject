@@ -1,1 +1,1 @@
-{"root":["./src/RedisManager.ts","./src/index.ts","./src/routes/depth.ts","./src/routes/kline.ts","./src/routes/order.ts","./src/types/index.ts","./src/types/toEngine.ts"],"version":"5.8.3"}
+{"root":["./src/RedisManager.ts","./src/index.ts","./src/routes/depth.ts","./src/routes/kline.ts","./src/routes/order.ts","./src/routes/tickers.ts","./src/types/index.ts","./src/types/toEngine.ts"],"version":"5.8.3"}
