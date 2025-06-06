@@ -51,7 +51,7 @@ export class SubscriptionManager {
     }
 
     public userLeft(userId:string){
-        console.log("user left" + userId);
+        console.log("user left " + userId);
         this.subscriptions.get(userId)?.forEach(s => this.unsubscribe(userId,s));
     }
 

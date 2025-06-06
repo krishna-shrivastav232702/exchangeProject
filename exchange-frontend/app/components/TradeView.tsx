@@ -10,7 +10,7 @@ export function TradeView({ market }: { market: string }) {
         const init = async () => {
             let klineData: KLine[] = [];
             try {
-                klineData = await getKlines(market, "1h", Math.floor((new Date().getTime() - 1000 * 60 * 60 * 24 * 7) / 1000), Math.floor(new Date().getTime() / 1000));
+                klineData = await getKlines(market, "1m", Math.floor((new Date().getTime() - 1000 * 60 * 60 * 24 * 7) / 1000), Math.floor(new Date().getTime() / 1000));
             } catch (error) {
 
             }
@@ -36,7 +36,7 @@ export function TradeView({ market }: { market: string }) {
                     }
                 );
                 //@ts-ignore
-                chartManagerRef.current = ChartManager;
+                chartManagerRef.current = chartManager;
             }
         };
         init();

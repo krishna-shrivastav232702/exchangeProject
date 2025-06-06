@@ -15,13 +15,13 @@ async function initializeDB(){
     await client.connect();
 
     await client.query(`
-        DROP TABLE IF EXISTS "tata_prices";
-        CREATE TABLE "table_prices"(
-            time            TIMESTAMP WITH TIME ZONE NOT NULL,
-            price   DOUBLE PRECISION,
-            volume  DOUBLE PRECISION,
-            currency_code   VARCHAR (10)
-            );
+        DROP TABLE IF EXISTS "tata_prices" CASCADE;
+        CREATE TABLE "tata_prices"(
+            time TIMESTAMP WITH TIME ZONE NOT NULL,
+            price DOUBLE PRECISION,
+            volume DOUBLE PRECISION,
+            currency_code VARCHAR (10)
+        );
         SELECT create_hypertable('tata_prices','time','price',2);
     `);
 
@@ -54,7 +54,7 @@ async function initializeDB(){
     `);
 
     await client.query(`
-        CREATE MATERIALIZED VIEW IF NOT EXISTS klines_1h AS 
+        CREATE MATERIALIZED VIEW IF NOT EXISTS klines_1w AS 
         SELECT
             time_bucket('1 hour',time) AS bucket,
             first(price,time) AS open,

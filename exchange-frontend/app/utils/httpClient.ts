@@ -21,6 +21,7 @@ export async function getTickers():Promise<Ticker[]>{
 
 export async function getKlines(market:string,interval:string,startTime:number,endTime:number):Promise<KLine[]>{
     const response = await axios.get(`${BASE_URL}/klines?symbol=${market}&interval=${interval}&startTime=${startTime}&endTime=${endTime}`);
+    console.log("klines",response);
     const data: KLine[] = response.data;
     return data.sort((x,y)=>(Number(x.end)<Number(y.end)? -1 : 1));
 }

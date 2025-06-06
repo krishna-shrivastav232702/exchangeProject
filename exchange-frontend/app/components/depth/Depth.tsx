@@ -2,7 +2,7 @@
 
 import { SignalingManager } from "@/app/utils/SignalingManager";
 import { useEffect, useState } from "react";
-import { getDepth,getTicker, getTrades } from "@/app/utils/httpClient";
+import { getDepth, getTicker, getTrades } from "@/app/utils/httpClient";
 import { AskTable } from "./AskTable";
 import { BidTable } from "./BidTable";
 
@@ -40,7 +40,7 @@ export function Depth({ market }: { market: string }) {
 
             setAsks((originalAsks) => {
                 const asksAfterUpdate = [...(originalAsks || [])];
-                
+
                 for (let i = 0; i < asksAfterUpdate.length; i++) {
                     for (let j = 0; j < data.asks.length; j++) {
                         if (asksAfterUpdate[i][0] === data.asks[j][0]) {
@@ -64,31 +64,33 @@ export function Depth({ market }: { market: string }) {
             });
         }, `DEPTH-${market}`);
 
-        SignalingManager.getInstance().sendMessage({"method":"SUBSCRIBE","params":[`depth@${market}`]});
+        SignalingManager.getInstance().sendMessage({ "method": "SUBSCRIBE", "params": [`depth@${market}`] });
         getDepth(market).then(d => {
             setBids(d.bids.reverse());
             setAsks(d.asks);
         })
         getTicker(market).then(t => setPrice(t.lastPrice));
-        getTrades(market).then(t => setPrice(t[0].price));
+        getTrades(market).then(t => 
+            setPrice(t[0]?.price)
+        );
 
         return () => {
-            SignalingManager.getInstance().sendMessage({"method":"UNSUBSCRIBE","params":[`depth@${market}`]});
-            SignalingManager.getInstance().deregistercallback("depth",`DEPTH-${market}`);
+            SignalingManager.getInstance().sendMessage({ "method": "UNSUBSCRIBE", "params": [`depth@${market}`] });
+            SignalingManager.getInstance().deregistercallback("depth", `DEPTH-${market}`);
         }
-    },[]);
+    }, []);
     return <div>
-        <TableHeader/>
+        <TableHeader />
         {asks && <AskTable asks={asks} />}
         {price && <div>{price}</div>}
         {bids && <BidTable bids={bids} />}
     </div>
 }
 
-function TableHeader(){
+function TableHeader() {
     return <div className="flex justify-between text-xs">
-    <div className="text-white">Price</div>
-    <div className="text-slate-500">Size</div>
-    <div className="text-slate-500">Total</div>
-</div>
+        <div className="text-white">Price</div>
+        <div className="text-slate-500">Size</div>
+        <div className="text-slate-500">Total</div>
+    </div>
 }

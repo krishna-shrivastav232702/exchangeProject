@@ -18,8 +18,8 @@ pgClient.connect();
 export const klineRouter = Router();
 
 klineRouter.get("/", async (req:Request, res:Response) => {
-    const { market, interval, startTime, endTime } = req.query;
-
+    const { symbol, interval, startTime, endTime } = req.query;
+    
     let query;
     switch (interval) {
         case '1m':
@@ -39,6 +39,7 @@ klineRouter.get("/", async (req:Request, res:Response) => {
     try {
         //@ts-ignore
         const result = await pgClient.query(query, [new Date(startTime * 1000 as string), new Date(endTime * 1000 as string)]);
+        console.log("result",result);
         res.json(result.rows.map(x => ({
             close: x.close,
             end: x.bucket,
