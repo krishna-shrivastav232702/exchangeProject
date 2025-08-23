@@ -1,6 +1,6 @@
 import { RedisManager } from "../RedisManager";
 import { ORDER_UPDATE } from "../types";
-import { CANCEL_ORDER, CREATE_ORDER, MessageFromApi } from "../types/fromApi";
+import { CANCEL_ORDER, CREATE_ORDER, GET_DEPTH, GET_OPEN_ORDERS, MessageFromApi } from "../types/fromApi";
 import { Fill, Order, Orderbook } from "./Orderbook";
 import dotenv from "dotenv"
 import fs from "fs"
@@ -46,7 +46,7 @@ export class Engine {
             // this.process({message,clientId:"2"});
 
         } else {
-            this.orderbooks = [new Orderbook(`TATA`, [], [], 0, 0)];
+            this.orderbooks = [new Orderbook(`TATA_INR`, [], [], 0, 0)];
             this.setBaseBalances();
         }
         setInterval(() => {
@@ -136,6 +136,61 @@ export class Engine {
                     console.log(error);
                 }
                 break;
+            case GET_DEPTH:
+                try {
+                    const market = message.data.market;
+                    const orderbook = this.orderbooks.find(o => o.ticker() === market);
+                    if (!orderbook) {
+                        throw new Error("No orderbook found");
+                    }
+                    const depth = orderbook.getDepth();
+                    RedisManager.getInstance().sendToApi(clientId, {
+                        type: "DEPTH",
+                        payload: {
+                            market: market,
+                            bids: depth.bids,
+                            asks: depth.asks
+                        }
+                    });
+                } catch (error) {
+                    console.log("error while getting depth:", error);
+                    RedisManager.getInstance().sendToApi(clientId, {
+                        type: "ERROR",
+                        payload: {
+                            message: "Failed to get depth"
+                        }
+                    });
+                }
+                break;
+            case GET_OPEN_ORDERS:
+                try {
+                    const userId = message.data.userId;
+                    const market = message.data.market;
+                    const orderbook = this.orderbooks.find(o => o.ticker() === market);
+                    if (!orderbook) {
+                        throw new Error("No orderbook found");
+                    }
+                    
+                    const userBids = orderbook.bids.filter(order => order.userId === userId && order.filled < order.quantity);
+                    const userAsks = orderbook.asks.filter(order => order.userId === userId && order.filled < order.quantity);
+                    
+                    RedisManager.getInstance().sendToApi(clientId, {
+                        type: "OPEN_ORDERS",
+                        payload: {
+                            bids: userBids,
+                            asks: userAsks
+                        }
+                    });
+                } catch (error) {
+                    console.log("error while getting open orders:", error);
+                    RedisManager.getInstance().sendToApi(clientId, {
+                        type: "ERROR",
+                        payload: {
+                            message: "Failed to get open orders"
+                        }
+                    });
+                }
+                break;
         }
     }
 
@@ -145,13 +200,13 @@ export class Engine {
             return;
         }
         const depth = orderbook.getDepth();
-        const updatedBids = depth?.bids.filter(x => x[0]===price);
-        const updatedAsks = depth?.asks.filter(x => x[0] === price);
+        
+        // Send complete depth update to ensure frontend sees all changes
         RedisManager.getInstance().publishMessage(`depth@${market}`,{
             stream:`depth@${market}`,
             data:{
-                a: updatedAsks.length ? updatedAsks : [[price,"0"]],
-                b: updatedAsks.length ? updatedBids : [[price,"0"]],
+                a: depth?.asks || [],
+                b: depth?.bids || [],
                 e: "depth"
             }
         });
@@ -164,12 +219,12 @@ export class Engine {
         if (!orderbook) {
             throw new Error("No orderbook found")
         }
-        this.checkAndLockFunds(baseAsset, quoteAsset, side, userId, quoteAsset, price, quantity);
+        this.checkAndLockFunds(baseAsset, quoteAsset, side, userId, price, quantity);
 
         const order: Order = {
             price: Number(price),
             quantity: Number(quantity),
-            orderId: Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15),
+            orderId: `${Date.now()}_${Math.random().toString(36).substring(2, 15)}_${userId}`,
             filled: 0,
             side,
             userId
@@ -211,32 +266,16 @@ export class Engine {
             return;
         }
         const depth = orderbook.getDepth();
-        if (side === "buy") {
-            const updatedAsks = depth?.asks.filter(x => fills.map(f => f.price).includes(x[0].toString()));
-            const updatedBid = depth?.bids.find(x => x[0] === price);
-            console.log("publish ws depth updates");
-            RedisManager.getInstance().publishMessage(`depth@${market}`, {
-                stream: `depth@${market}`,
-                data: {
-                    a: updatedAsks,
-                    b: updatedBid ? [updatedBid] : [],
-                    e: "depth"
-                }
-            });
-        }
-        if (side === "sell") {
-            const updatedBids = depth?.bids.filter(x => fills.map(f => f.price).includes(x[0].toString()));
-            const updatedAsk = depth?.asks.find(x => x[0] === price);
-            console.log("Publish ws depth updates");
-            RedisManager.getInstance().publishMessage(`depth@${market}`, {
-                stream: `depth@${market}`,
-                data: {
-                    a: updatedAsk ? [updatedAsk] : [],
-                    b: updatedBids,
-                    e: "depth"
-                }
-            })
-        }
+        
+        // Always send the complete updated order book to ensure frontend sees all changes
+        RedisManager.getInstance().publishMessage(`depth@${market}`, {
+            stream: `depth@${market}`,
+            data: {
+                a: depth?.asks || [],
+                b: depth?.bids || [],
+                e: "depth"
+            }
+        });
     }
 
     updateDbOrders(order: Order, executedQty: number, fills: Fill[], market: string) {
@@ -317,7 +356,7 @@ export class Engine {
         }
     }
 
-    checkAndLockFunds(baseAsset: string, quoteAsset: string, side: "buy" | "sell", userId: string, asset: string, price: string, quantity: string) {
+    checkAndLockFunds(baseAsset: string, quoteAsset: string, side: "buy" | "sell", userId: string, price: string, quantity: string) {
         if (side === "buy") {
             if ((this.balances.get(userId)?.[quoteAsset]?.available || 0) < Number(quantity) * Number(price)) {
                 throw new Error("Insufficient fund");

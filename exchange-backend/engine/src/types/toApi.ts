@@ -9,6 +9,7 @@ export const GET_DEPTH = "GET_DEPTH";
 export type MessageToApi = {
     type: "DEPTH",
     payload: {
+        market: string,
         bids: [string, string][], //array of tuple , each tuple -> two strings ( price , quantity)
         asks: [string, string][],
     }
@@ -32,5 +33,13 @@ export type MessageToApi = {
     }
 } | {
     type:"OPEN_ORDERS",
-    payload:Order[]
+    payload:{
+        bids: Order[],
+        asks: Order[]
+    }
+} | {
+    type:"ERROR",
+    payload:{
+        message: string
+    }
 }

@@ -1,6 +1,6 @@
 import axios from "axios";
 
-const BASE_URL = 'http://localhost:3000';
+const BASE_URL = 'http://localhost:3005';
 const TOTAL_BIDS = 15;
 const TOTAL_ASK = 15;
 const MARKET = "TATA_INR";
@@ -11,11 +11,14 @@ async function main(){
     const price = 1000 + Math.random()*10;
     const openOrders = await axios.get(`${BASE_URL}/api/v1/order/open?userId=${USER_ID}&market=${MARKET}`);
     
-    const totalBids = openOrders.data.filter((o:any) => o.side === "buy").length;
-    const totalAsks = openOrders.data.filter((o:any)=> o.side === "sell").length;
+    // The API returns {bids: [], asks: []}, so we need to combine them
+    const allOrders = [...(openOrders.data.bids || []), ...(openOrders.data.asks || [])];
+    
+    const totalBids = allOrders.filter((o:any) => o.side === "buy").length;
+    const totalAsks = allOrders.filter((o:any)=> o.side === "sell").length;
 
-    const cancelledBids = await cancelBidsMoreThan(openOrders.data,price);
-    const cancelledAsks = await cancelAsksLessThan(openOrders.data,price);
+    const cancelledBids = await cancelBidsMoreThan(allOrders,price);
+    const cancelledAsks = await cancelAsksLessThan(allOrders,price);
 
     let bidsToAdd = TOTAL_BIDS - totalBids -cancelledBids;
     let asksToAdd = TOTAL_ASK - totalAsks - cancelledAsks;

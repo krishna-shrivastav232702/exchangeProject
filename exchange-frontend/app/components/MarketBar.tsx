@@ -6,7 +6,15 @@ import type { Ticker } from "../utils/types";
 
 export const MarketBar = ({ market }: { market: string }) => {
     const [ticker, setTicker] = useState<Ticker | null>(null);
+    const [connectionStatus, setConnectionStatus] = useState<string>('connecting');
+    
     useEffect(() => {
+        // Check connection status periodically
+        const connectionCheckInterval = setInterval(() => {
+            const status = SignalingManager.getInstance().getConnectionStatus();
+            setConnectionStatus(status);
+        }, 2000);
+
         getTicker(market).then(setTicker);
         SignalingManager.getInstance().registerCallback("ticker", (data: Partial<Ticker>) => setTicker(prevTicker => ({
             firstPrice: data?.firstPrice ?? prevTicker?.firstPrice ?? '',
@@ -22,11 +30,23 @@ export const MarketBar = ({ market }: { market: string }) => {
         })), `TICKER-${market}`);
         SignalingManager.getInstance().sendMessage({ "method": "SUBSCRIBE", "params": [`ticker.${market}`] });
         return () => {
+            clearInterval(connectionCheckInterval);
             SignalingManager.getInstance().deregistercallback("ticker", `TICKER-${market}`);
             SignalingManager.getInstance().sendMessage({ "method": "UNSUBSCRIBE", "params": [`ticker.${market}`] });
         }
     }, [market]);
     return <div>
+        {/* Connection Status Indicator */}
+        <div className={`text-xs p-1 text-center ${
+            connectionStatus === 'connected' ? 'bg-green-800 text-green-200' : 
+            connectionStatus === 'connecting' ? 'bg-yellow-800 text-yellow-200' : 
+            'bg-red-800 text-red-200'
+        }`}>
+            {connectionStatus === 'connected' ? '🟢 Live' : 
+             connectionStatus === 'connecting' ? '🟡 Connecting...' : 
+             '🔴 Disconnected'}
+        </div>
+        
         <div className="flex items-center flex-row relative w-full overflow-hidden border-b border-slate-800">
             <div className="flex items-center justify-between flex-row no-scrollbar overflow-auto pr-4">
                 <Ticker market={market} />
